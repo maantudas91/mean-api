@@ -27,6 +27,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use("/api/uploads", express.static(path.join(__dirname, 'uploads')));
 
 app.set('superSecret', 'superSecret'); // secret variable
 

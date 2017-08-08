@@ -27,31 +27,40 @@ var Storage = multer.diskStorage({
 
 // register url route
 var registerPost =  (req, res) => {
-    var user = _.pick(req.body,['name','email','password']);
-    
-    var newuser = new usermodel.User(user);
-    newuser.save().then((doc) =>{
-      res.status(201).jsonp({ success: 'user created', data : doc });
-    },(e)=>{
-        res.status(500).jsonp({ error: 'message' });
+    var userData = req.body;
+    usermodel.User.findOne({ email: userData.email }, function(err, user) {
+        if(err) res.status(500).jsonp({ error: true, message : 'internal server error' });
+        if(user){
+            res.status(404).jsonp({ error: true , message : 'email already exists' });
+        }else{
+            var newuser = new usermodel.User(userData);
+            newuser.save().then((doc) =>{
+            res.status(201).jsonp({ success: 'user created', data : doc });
+            },(e)=>{
+                res.status(500).jsonp({ error: 'message' });
+            });
+        } 
     });
 };
 
 
 // Login route
 var loginPost = (req, res) =>{
-    var userBody = _.pick(req.body,['email','password']);
+    //var userBody = _.pick(req.body,['email','password']);
+    var userBody = req.body;
     // fetch user and test password verification
     usermodel.User.findOne({ email: userBody.email }, function(err, user) {
-        if (err) {
-          return res.status(500).jsonp({ error: 'message' });
+        if (err) res.status(500).jsonp({ error: true, message : 'internal server error' });
+        
+        if(!user){
+           res.status(404).jsonp({ error: true , message : 'email does\'t match' });
         }else{
           // test a matching password
           user.comparePassword(userBody.password, function(err, isMatch) {
               if (err) {
-                res.status(500).jsonp({ error: 'message' });
+                res.status(500).jsonp({ error: 'there r some issue' });
               }else if(isMatch == false){
-                res.status(500).jsonp({ error: 'message' });
+                res.status(404).jsonp({ error: 'password doesn\'t match' });
               }else{
                 var token = jwt.sign(user, 'superSecret', { expiresIn: '1h' });
                 // return the information including token as JSON
@@ -65,9 +74,11 @@ var loginPost = (req, res) =>{
 var profile = (req, res) =>{
     var id = req.params.id;
     usermodel.User.findOne({ _id: id }, function(err, user) {
-      if (err) res.status(500).jsonp({ error: 'message' });
-
-      else{
+      if (err) res.status(500).jsonp({ error: true, message: "internal server error" });
+      
+      if(!user){
+            res.status(404).jsonp({ error: true, message: "user not found" });
+      }else{
         res.status(200).json({ success: true, message: 'user_found',user: user });
       }
     });
@@ -77,7 +88,7 @@ var profileImageUpload = (req, res) =>{
 
     //var userid = _.pick(req.body,['id']);
     //console.log(userid);
-    usermodel.User.findOne({ _id: '5987961dc442e130b4871c01'}, function(err, user) {
+    usermodel.User.findOne({ _id: '5988abe626910b2030a5f4da'}, function(err, user) {
         if(err) {
           res.status(500).jsonp({ error: true ,message : 'user_not_found' });
         }else{
@@ -96,28 +107,28 @@ var profileImageUpload = (req, res) =>{
 		          }
            }).single('image'); 
            
-     upload(req, res, function(err) {
-         if (err) {
-            //res.status(500).jsonp({ error: 'message' });
-            return res.status(500).jsonp({ error: 'message' });
-         }
+          upload(req, res, function(err) {
+              if (err) {
+                  //res.status(500).jsonp({ error: 'message' });
+                  return res.status(500).jsonp({ error: 'message' });
+              }
 
-         if(req.file !==  undefined){
-              user.profileImage = req.file.filename;
-              user.save(function(err) {
-                if(err){
-                  return res.status(500).jsonp({ error: true , message: 'problem in saving the image' });
-                }else{
-                  res.json({'fileName':req.file.originalname,'destination':req.file.filename});
-                }
-              });
-               
-         }else{
-           res.status(200).json({ success: true, message: 'Unable to Upload file' });
-         }
+              if(req.file !==  undefined){
+                    user.profileImage = req.file.filename;
+                    user.save(function(err) {
+                      if(err){
+                        return res.status(500).jsonp({ error: true , message: 'problem in saving the image' });
+                      }else{
+                        res.json({'fileName':req.file.originalname,'destination':req.file.filename});
+                      }
+                    });
+                    
+              }else{
+                res.status(200).json({ success: true, message: 'Unable to Upload file' });
+              }
 
-        //console.log(res);
-     });
+              //console.log(res);
+          });
         }
 
     });
