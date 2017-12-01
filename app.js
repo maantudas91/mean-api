@@ -34,6 +34,8 @@ app.set('superSecret', 'superSecret'); // secret variable
 
 app.use('/', index);
 app.use('/users', users);
+
+
 app.use('/api',myRoutes);
 
 // catch 404 and forward to error handler

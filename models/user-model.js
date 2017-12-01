@@ -1,19 +1,37 @@
 const db = require('../db');
 const mongoose = require('mongoose');
-
+const validator = require('validator');
 const bcrypt = require('bcrypt');
-SALT_WORK_FACTOR = 10;
+const jwt    = require('jsonwebtoken');
 
-//  mongoose.Promise = global.Promise;
-//  mongoose.connect('localhost:27017/mean-api');
+SALT_WORK_FACTOR = 10;
 
 
 var userSchema = new mongoose.Schema({
     name : { type: String, required: true, trim :true },
-    email : { type: String, required: true, unique: true, trim: true },
+    email : { 
+        type: String, 
+        required: true,
+        unique: true,
+        trim: true,
+        validate: {
+            validator: validator.isEmail,
+            message: '{VALUE} is not a valid email'
+        }
+    },
     password : { type: String,  required: true },
     image : { data: Buffer, contentType: String },
     profileImage : { type : String},
+    tokens: [{
+                access: {
+                    type: String,
+                    required: true
+                },
+                token: {
+                    type: String,
+                    required: true
+                }
+    }],
     createdAt : { type: Date, default: Date.now },
     updatedAt : { type: Date, default: Date.now }
 });
@@ -48,6 +66,47 @@ userSchema.methods.comparePassword = function(candidatePassword, cb) {
     });
 };
 
-var User = db.model('User', userSchema);
+userSchema.methods.generateAuthToken = function () {
+  var user = this;
+  var access = 'auth';
+  var token = jwt.sign({_id: user._id.toHexString(), access}, 'superSecret',{ expiresIn: '1h' }).toString();
+  //var token = jwt.sign(user, 'superSecret', { expiresIn: '1h' });
+
+  user.tokens.push({access, token});
+
+  return user.save().then(() => {
+    return token;
+  });
+};
+
+userSchema.statics.findByToken = function (token,decoded) {
+    //console.log(decoded.$__.id);
+  var User = this;
+  //var decoded;
+
+    //   try {
+    //     decoded = jwt.verify(token, 'superSecret');
+    //   } catch (e) {
+    //     return Promise.reject();
+    //   }
+
+    return User.findOne({
+        '_id': decoded._id,
+        'tokens.token': token,
+        'tokens.access': 'auth'
+    });
+};
+
+userSchema.methods.removeToken = function (token) {
+  var user = this;
+
+  return user.update({
+    $pull: {
+      tokens: {token}
+    }
+  });
+};
+
+var User = mongoose.model('User', userSchema);
 
 module.exports = { User };
